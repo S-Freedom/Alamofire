@@ -41,12 +41,14 @@ open class Session {
     /// Instance's `SessionDelegate`, which handles the `URLSessionDelegate` methods and `Request` interaction.
     public let delegate: SessionDelegate
     /// Root `DispatchQueue` for all internal callbacks and state update. **MUST** be a serial queue.
+    // 维护内部回调和状态的更新， 必须是一个串行队列
     public let rootQueue: DispatchQueue
     /// Value determining whether this instance automatically calls `resume()` on all created `Request`s.
     public let startRequestsImmediately: Bool
     /// `DispatchQueue` on which `URLRequest`s are created asynchronously. By default this queue uses `rootQueue` as its
     /// `target`, but a separate queue can be used if request creation is determined to be a bottleneck. Always profile
     /// and test before introducing an additional queue.
+    // 创建一个异步线程用于存储网络请求，默认是rootQueue
     public let requestQueue: DispatchQueue
     /// `DispatchQueue` passed to all `Request`s on which they perform their response serialization. By default this
     /// queue uses `rootQueue` as its `target` but a separate queue can be used if response serialization is determined
@@ -1005,6 +1007,10 @@ open class Session {
     }
 
     func performDataRequest(_ request: DataRequest) {
+//        dispatchPrecondition 校验闭包是否在当前的队列上执行，有三种方式
+//        1. onQueue 在当前队列上执行
+//        2. notOnQueue 不在当前队列上执行
+//        3. onQueueAsBarrier 校验是否当前的闭包或工作项是队列上的一个障碍
         dispatchPrecondition(condition: .onQueue(requestQueue))
 
         performSetupOperations(for: request, convertible: request.convertible)
@@ -1156,6 +1162,7 @@ open class Session {
     // MARK: - Invalidation
 
     func finishRequestsForDeinit() {
+        // requestTaskMap deinit时释放集合当中的所有请求
         requestTaskMap.requests.forEach { request in
             rootQueue.async {
                 request.finish(error: AFError.sessionDeinitialized)
